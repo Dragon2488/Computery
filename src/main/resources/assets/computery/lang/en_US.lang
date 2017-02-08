@@ -1,0 +1,12 @@
+﻿
+item.computery.opencomputers_0.name=Locomotive Card
+item.computery.opencomputers_1.name=Quadruple Graphics Card
+tile.computery.nfc_track.name=NFC Track
+
+item.railcraft.cart.loco_diesel.name=Diesel Locomotive
+entity.computery.cart.loco_diesel.name=Diesel Locomotive
+
+
+railcraft.diesel.default.name=Standard Diesel
+railcraft.diesel.heart.name=Diesel with Heart
+railcraft.tooltip.locomotive_card=Put Locomotive Card here
