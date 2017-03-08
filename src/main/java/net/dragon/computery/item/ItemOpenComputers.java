@@ -31,7 +31,6 @@ import java.util.UUID;
 
 public class ItemOpenComputers extends Item implements HostAware, EnvironmentProvider, UpgradeRenderer {
 
-    @SideOnly(Side.CLIENT)
     private IIcon[] icons = new IIcon[1];
 
     public ItemOpenComputers() {
