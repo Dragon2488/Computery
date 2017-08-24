@@ -241,7 +241,6 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
     @Callback(doc = "getAttachedList(): string[] -- get list of all available locomotives")
     public Object[] getAttachedList(Context context, Arguments arguments) {
         List<String> attached = new ArrayList<>();
-        System.out.println(host.getClass());
         UUID myCardId = ItemOpenComputers.getLocomotiveCardId(cardStack);
         for (Entity entity : (List<Entity>) host.world().loadedEntityList) {
             if (entity instanceof EntityLocomotiveDiesel) {
@@ -270,7 +269,7 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
 
     private EntityLocomotiveDiesel getLocomotive(String id) throws LuaError {
         UUID myCardId = ItemOpenComputers.getLocomotiveCardId(cardStack);
-        for(Entity entity : (List<Entity>) host.world().getLoadedEntityList()) {
+        for(Entity entity : (List<Entity>) host.world().loadedEntityList) {
             if(entity instanceof EntityLocomotiveDiesel) {
                 UUID cardId = ((EntityLocomotiveDiesel) entity).getLocomotiveCardId();
                 if(myCardId.equals(cardId)) {
