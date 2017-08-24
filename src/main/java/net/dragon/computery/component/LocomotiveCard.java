@@ -4,13 +4,16 @@ package net.dragon.computery.component;
 import com.mojang.authlib.GameProfile;
 import li.cil.oc.Settings;
 import li.cil.oc.api.API;
+import li.cil.oc.api.component.RackMountable;
 import li.cil.oc.api.driver.DeviceInfo;
+import li.cil.oc.api.internal.Rack;
 import li.cil.oc.api.machine.*;
 import li.cil.oc.api.network.ComponentConnector;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Visibility;
 import li.cil.oc.api.prefab.ManagedEnvironment;
+import li.cil.oc.common.inventory.ComponentInventory;
 import li.cil.repack.org.luaj.vm2.LuaError;
 import mods.railcraft.common.carts.EntityLocomotive;
 import mods.railcraft.common.plugins.forge.LocalizationPlugin;
@@ -18,6 +21,7 @@ import net.dragon.computery.cart.entity.EntityLocomotiveDiesel;
 import net.dragon.computery.item.ItemOpenComputers;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
+import scala.Option;
 
 import java.util.*;
 
@@ -26,7 +30,8 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
     private static HashMap<UUID, WeakHashMap<String, LocomotiveCard>> connectedNodes = new HashMap<>();
 
     private final ComponentConnector node;
-    private final MachineHost host;
+    private final EnvironmentHost environmentHost;
+    private MachineHost host;
     private final ItemStack cardStack;
 
     public LocomotiveCard(ItemStack cardStack, EnvironmentHost host) {
@@ -34,14 +39,41 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
                 .withComponent("locomotive", Visibility.Neighbors)
                 .withConnector()
                 .create();
-        this.host = (MachineHost) host;
+        this.environmentHost = host;
         this.cardStack = cardStack;
         setNode(node);
+    }
+
+    private MachineHost determineTrueHost() {
+        try {
+            if(environmentHost instanceof MachineHost) {
+                return (MachineHost) environmentHost;
+            } else if(environmentHost instanceof Rack) {
+                Rack rack = (Rack) environmentHost;
+                for(int rackIndex = 0; rackIndex < rack.getSizeInventory(); rackIndex++) {
+                    RackMountable mountable = rack.getMountable(rackIndex);
+                    if(mountable instanceof MachineHost && mountable instanceof ComponentInventory) {
+                        ComponentInventory inventory = (ComponentInventory) mountable;
+                        Option<li.cil.oc.api.network.ManagedEnvironment>[] components = inventory.components();
+                        for(Option<li.cil.oc.api.network.ManagedEnvironment> environment : components) {
+                            if(environment.isDefined() && environment.get() == this) {
+                                return (MachineHost) mountable; //true host
+                            }
+                        }
+                    }
+                }
+            }
+            throw new IllegalArgumentException("Cannot determine true host of " + environmentHost);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     @Override
     public void onConnect(Node node) {
         if(this.node == node) {
+            this.host = determineTrueHost();
             UUID myCardId = ItemOpenComputers.getLocomotiveCardId(cardStack);
             WeakHashMap<String, LocomotiveCard> connected = connectedNodes.get(myCardId);
             if(connected == null) {
@@ -186,7 +218,7 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
         return array(request(arguments.checkString(0)).getDataWatcher().getWatchableObjectInt(31));
     }
 
-    @Callback(doc = "setLightColor(id, color): boolean -- set locomotive light color (oxRRGGBB)")
+    @Callback(doc = "setLightColor(id, color): boolean -- set locomotive light color (RGBInt)")
     public Object[] setLightColor(Context context, Arguments arguments) throws LuaError {
         int color = arguments.checkInteger(1);
         if(color < 0x000000 || color > 0xFFFFFF) {
@@ -209,11 +241,12 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
     @Callback(doc = "getAttachedList(): string[] -- get list of all available locomotives")
     public Object[] getAttachedList(Context context, Arguments arguments) {
         List<String> attached = new ArrayList<>();
+        System.out.println(host.getClass());
         UUID myCardId = ItemOpenComputers.getLocomotiveCardId(cardStack);
-        for(Entity entity : (List<Entity>) host.world().getLoadedEntityList()) {
-            if(entity instanceof EntityLocomotiveDiesel) {
+        for (Entity entity : (List<Entity>) host.world().loadedEntityList) {
+            if (entity instanceof EntityLocomotiveDiesel) {
                 UUID cardId = ((EntityLocomotiveDiesel) entity).getLocomotiveCardId();
-                if(myCardId.equals(cardId)) {
+                if (myCardId.equals(cardId)) {
                     attached.add(entity.getUniqueID().toString());
                 }
             }
@@ -232,7 +265,7 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
             if(node.tryChangeBuffer(-(distance / (Settings.get().maxWirelessRange() * Settings.get().wirelessCostPerRange()) * 1.5))) {
                 return locomotive;
             } else throw new LuaError("not enough energy in network");
-        } else throw new LuaError("locomotive not found", 1);
+        } else throw new LuaError("locomotive not found");
     }
 
     private EntityLocomotiveDiesel getLocomotive(String id) throws LuaError {
@@ -253,7 +286,7 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
     public Map<String, String> getDeviceInfo() {
         Map<String, String> INFO = new HashMap<>();
         INFO.put(DeviceAttribute.Class, DeviceClass.Network);
-        INFO.put(DeviceAttribute.Vendor, "Dragon Inc.");
+        INFO.put(DeviceAttribute.Vendor, "Avium Inc.");
         INFO.put(DeviceAttribute.Product, "Locomotive controller");
         return INFO;
     }
@@ -262,9 +295,11 @@ public class LocomotiveCard extends ManagedEnvironment implements DeviceInfo {
         WeakHashMap<String, LocomotiveCard> connected = connectedNodes.get(networkId);
         if(connected != null && !connected.isEmpty()) {
             for(LocomotiveCard locomotiveCard : connected.values()) {
-                Machine machine = locomotiveCard.host.machine();
-                if(machine.isRunning()) {
-                    machine.signal(signal, arguments);
+                if(locomotiveCard.host != null) {
+                    Machine machine = locomotiveCard.host.machine();
+                    if(machine.isRunning()) {
+                        machine.signal(signal, arguments);
+                    }
                 }
             }
         }

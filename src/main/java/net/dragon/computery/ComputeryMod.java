@@ -13,6 +13,7 @@ import net.dragon.computery.cart.ModEnumCart;
 import net.dragon.computery.cart.render.ModRenderType;
 import net.dragon.computery.item.Objects;
 import net.dragon.computery.item.RecipeConfigurationCircuit;
+import net.dragon.computery.item.RecipeLocomotiveCardLink;
 import net.dragon.computery.item.ShapedNFCRecipe;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.crafting.CraftingManager;
@@ -114,6 +115,7 @@ public class ComputeryMod {
         GameRegistry.addRecipe(new ShapelessOreRecipe(new ItemStack(Objects.metaItem, 1, 3), "circuitData"));
 
         CraftingManager.getInstance().getRecipeList().add(new RecipeConfigurationCircuit());
+        CraftingManager.getInstance().getRecipeList().add(new RecipeLocomotiveCardLink());
 
     }
 
