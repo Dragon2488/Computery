@@ -430,7 +430,7 @@ public class EntityLocomotiveDiesel extends EntityLocomotive implements IFluidHa
     public static boolean isGregtechFuel(Fluid fluid) {
         for (GT_Recipe recipe : GT_Recipe.GT_Recipe_Map.sDieselFuels.mRecipeList) {
             FluidStack stack = GT_Utility.getFluidForFilledItem(recipe.mInputs[0], true);
-            if (stack.getFluid() == fluid) {
+            if (stack != null && stack.getFluid() == fluid) {
                 return true;
             }
         }
